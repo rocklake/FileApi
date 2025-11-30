@@ -8,6 +8,8 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.text.Text;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -41,6 +43,21 @@ public class FileApi extends Module {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        File file = new File("FileApi/print.txt");
+        if (!file.exists()) return;
+
+        try {
+            String message = new String(java.nio.file.Files.readAllBytes(file.toPath())).trim();
+            if (!message.isEmpty()) {
+                mc.inGameHud.getChatHud().addMessage(Text.literal(message));
+                java.nio.file.Files.write(file.toPath(), new byte[0]);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+}    
+
     }
     @EventHandler
     private void onTick(TickEvent.Post event) {
@@ -76,4 +93,5 @@ public class FileApi extends Module {
             }
         }
     }
+    
 }
