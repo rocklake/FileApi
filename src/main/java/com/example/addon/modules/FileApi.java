@@ -22,34 +22,60 @@ public class FileApi extends Module {
         super(Categories.Misc, "FileApi", "Handles tochat.txt, command.txt, print.txt, lastchat.txt");
     }
 
+    @Override
+    public void onActivate() {
+        File folder = new File("FileApi");
+        if (!folder.exists()) folder.mkdir();
+    }
+
+
+
     @EventHandler
     private void onTickPre(TickEvent.Pre event) {
         if (mc.player == null || mc.world == null) return;
 
-        File folder = new File("FileApi");
-        if (!folder.exists()) folder.mkdir();
+        // tochat
+        File tochat = new File("FileApi/tochat.txt");
+        if (tochat.exists()) {
+            try {
+                String message = new String(Files.readAllBytes(tochat.toPath()), StandardCharsets.UTF_8).trim();
+                if (!message.isEmpty()) {
+                    mc.getNetworkHandler().sendChatMessage(message);
+                }
+                Files.write(tochat.toPath(), new byte[0]); // clear file
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
-
-        handleFileSendMessage("tochat.txt", true);
-
-
-        handleFileSendMessage("print.txt", false);
+        // print
+        File print = new File("FileApi/print.txt");
+        if (print.exists()) {
+            try {
+                String message = new String(Files.readAllBytes(print.toPath()), StandardCharsets.UTF_8).trim();
+                if (!message.isEmpty()) {
+                    mc.inGameHud.getChatHud().addMessage(Text.literal(message));
+                }
+                Files.write(print.toPath(), new byte[0]); // clear file
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
+
+
 
     @EventHandler
     private void onTickPost(TickEvent.Post event) {
-        if (mc.player == null || mc.world == null || !mc.player.isAlive()) return;
+        if (mc.player == null || mc.world == null) return;
 
-        File folder = new File("FileApi");
-        if (!folder.exists()) folder.mkdir();
-
+        // command
         File file = new File("FileApi/command.txt");
         if (!file.exists()) return;
-
         try {
             String message = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).trim();
             if (!message.isEmpty()) {
-                mc.getNetworkHandler().sendChatCommand(message); 
+                mc.getNetworkHandler().sendChatCommand(message);
                 Files.write(file.toPath(), new byte[0]);
             }
         } catch (IOException e) {
@@ -57,36 +83,21 @@ public class FileApi extends Module {
         }
     }
 
+
+
+
     @EventHandler
-    private void onChatPacket(PacketEvent.Receive event) {
+    private void onPacket(PacketEvent.Receive event) {
+
+        // lastchat
         if (event.packet instanceof GameMessageS2CPacket) {
             GameMessageS2CPacket packet = (GameMessageS2CPacket) event.packet;
             String message = packet.content().getString();
-
             try (BufferedWriter writer = new BufferedWriter(new FileWriter("FileApi/lastchat.txt", false))) {
                 writer.write(message);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-    }
-
-    private void handleFileSendMessage(String filename, boolean sendPublic) {
-        File file = new File("FileApi/" + filename);
-        if (!file.exists()) return;
-
-        try {
-            String message = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).trim();
-            if (!message.isEmpty()) {
-                if (sendPublic) {
-                    mc.getNetworkHandler().sendChatMessage(message);
-                } else {
-                    mc.inGameHud.getChatHud().addMessage(Text.literal(message));
-                }
-                Files.write(file.toPath(), new byte[0]); // clear file
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 }
