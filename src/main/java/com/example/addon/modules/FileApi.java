@@ -11,6 +11,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.network.packet.c2s.play.ChatMessageC2SPacket;
 import net.minecraft.text.Text;
 
 import java.io.BufferedWriter;
@@ -23,7 +24,7 @@ import java.nio.file.Files;
 public class FileApi extends Module {
 
     public FileApi() {
-        super(Categories.Misc, "FileApi", "Handles tochat.txt, command.txt, print.txt, lastchat.txt, player_name.txt, player_move_c2s_packet.txt with directional movement.");
+        super(Categories.Misc, "FileApi", "V4 Handles to_chat.txt, command.txt, print.txt, last_chat.txt, last_player_chat.txt player_name.txt, player_move_c2s_packet.txt");
     }
 
     @Override
@@ -36,8 +37,8 @@ public class FileApi extends Module {
     private void onTickPre(TickEvent.Pre event) {
         if (mc.player == null || mc.world == null) return;
 
-        // tochat
-        File tochat = new File("FileApi/tochat.txt");
+        // to_chat
+        File tochat = new File("FileApi/to_chat.txt");
         if (tochat.exists()) {
             try {
                 String message = new String(Files.readAllBytes(tochat.toPath()), StandardCharsets.UTF_8).trim();
@@ -65,7 +66,6 @@ public class FileApi extends Module {
                     JsonElement root = JsonParser.parseString(s);
                     java.util.function.Consumer<JsonObject> send = obj -> {
                         try {
-                            mc.inGameHud.getChatHud().addMessage(Text.literal("FileApi: reading move packet"));
                             double x = obj.has("x") ? parseRelative(obj.get("x").getAsString(), mc.player.getX()) : mc.player.getX();
                             double y = obj.has("y") ? parseRelative(obj.get("y").getAsString(), mc.player.getY()) : mc.player.getY();
                             double z = obj.has("z") ? parseRelative(obj.get("z").getAsString(), mc.player.getZ()) : mc.player.getZ();
@@ -75,8 +75,6 @@ public class FileApi extends Module {
                                 x, y, z, onGround, false
                             );
                             mc.getNetworkHandler().sendPacket(packet);
-
-                            mc.inGameHud.getChatHud().addMessage(Text.literal("FileApi: packet sent"));
                         } catch (Exception ex) {
                             ex.printStackTrace();
                         }
@@ -114,17 +112,30 @@ public class FileApi extends Module {
     }
 
     @EventHandler
-    private void onPacket(PacketEvent.Receive event) {
-        // lastchat
+    private void onPacketReceive(PacketEvent.Receive event) {
+        // last_chat
         if (event.packet instanceof GameMessageS2CPacket) {
             GameMessageS2CPacket packet = (GameMessageS2CPacket) event.packet;
             String message = packet.content().getString();
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter("FileApi/lastchat.txt", false))) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("FileApi/last_chat.txt", false))) {
                 writer.write(message);
             } catch (IOException e) { e.printStackTrace(); }
         }
     }
+    @EventHandler
+    private void onPacketSend(PacketEvent.Send event) {
+        // last_player_chat
+        if (event.packet instanceof ChatMessageC2SPacket) {
+            ChatMessageC2SPacket packet = (ChatMessageC2SPacket) event.packet;
+            String message = packet.chatMessage();
 
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("FileApi/last_player_chat.txt", false))) {
+                writer.write(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
     private double parseRelative(String s, double current) {
         s = s.trim();
         if (s.startsWith("~")) {
